@@ -13,6 +13,7 @@ namespace CritterCrawler
 		
 		public bool walkEnabled = false;
 		private bool initRetract = false;
+		[KSPField(isPersistant = true)]
 		public bool deployed = false;
 		
 		[KSPField(isPersistant = false)]
@@ -20,9 +21,13 @@ namespace CritterCrawler
 		
 		[KSPField(isPersistant = false, guiActive = true, guiName = "Sticky Feet")]
 		public bool stickyFeet = true;
-		
+
+		bool hasHiddenButtons = false;
+
+		/*
 		[KSPField(isPersistant = false, guiActive = true, guiName = "WalkNormTime")]  //debug
 		public float walkNormTime = 0;
+		*/
 		
 		[KSPAction("Toggle Legs")]
 		public void AGToggleLegs(KSPActionParam param)
@@ -99,6 +104,7 @@ namespace CritterCrawler
 					mw.Events["EnableMotor"].guiActiveEditor = false;
 					mw.Events["InvertSteering"].guiActiveEditor = false;
 					mw.Events["DisableMotor"].guiActiveEditor = false;
+					mw.Fields["brakeTorque"].guiActiveEditor = false;
 					mw.Actions["InvertSteeringAction"].active = false;
 					mw.Actions["LockSteeringAction"].active = false;
 					mw.Actions["UnlockSteeringAction"].active = false;
@@ -107,12 +113,9 @@ namespace CritterCrawler
 					mw.Actions["BrakesAction"].active = false;
 				}
 			}
+
 			
-			//unbreakablewheels
-			foreach(ModuleWheel mw in this.part.FindModulesImplementing<ModuleWheel>())
-			{
-				mw.damageable = false;	
-			}
+
 		}
 		
 		[KSPEvent(guiActive = true, guiName = "Toggle Sticky Feet", active = true)]
@@ -188,27 +191,32 @@ namespace CritterCrawler
 		
 		public override void OnUpdate()	
 		{
-			
-			//debug
+			if(!hasHiddenButtons)
+			{
+				hasHiddenButtons = true;
+				foreach(ModuleWheel mw in part.FindModulesImplementing<ModuleWheel>())
+				{
+					mw.steeringMode = ModuleWheel.SteeringModes.ManualSteer;
+					mw.Events["LockSteering"].guiActive = false;
+					mw.Events["LockSteering"].guiActiveEditor = false;
+					mw.Events["DisableMotor"].guiActive = false;
+					mw.Events["EnableMotor"].guiActive = false;
+					mw.Fields["wheelStatus"].guiActive = false;
+					mw.Fields["resourceFlowGui"].guiActive = false;
+					mw.Events["InvertSteering"].guiActive = false;
+					mw.Events["DisableMotor"].guiActive = false;
+					mw.damageable = false;	
+					mw.Fields["brakeTorque"].guiActive = false;
+				}
+			}
+			/*/debug
 			foreach(AnimationState anim in walkStates)
 			{
 				walkNormTime = anim.normalizedTime;
 			}
+			*/
 			
 			
-			foreach(ModuleWheel mw in part.FindModulesImplementing<ModuleWheel>())
-			{
-				mw.steeringMode = ModuleWheel.SteeringModes.ManualSteer;
-				mw.Events["LockSteering"].guiActive = false;
-				mw.Events["LockSteering"].guiActiveEditor = false;
-				mw.Events["DisableMotor"].guiActive = false;
-				mw.Events["EnableMotor"].guiActive = false;
-				mw.Fields["wheelStatus"].guiActive = false;
-				mw.Fields["resourceFlowGui"].guiActive = false;
-				mw.Events["InvertSteering"].guiActive = false;
-				mw.Events["DisableMotor"].guiActive = false;
-				
-			}
 			
 			if(deployed)
 			{
@@ -261,21 +269,20 @@ namespace CritterCrawler
 						//this.part.rigidbody.AddRelativeTorque(-20 * this.vessel.angularMomentum);
 					}
 					
-					if(vessel.checkLanded())
+					if(vessel.Landed)
 					{
 						if(vessel.srf_velocity.magnitude>maxSpeed)
 						{
-							vessel.rigidbody.velocity = Vector3.MoveTowards(vessel.rigidbody.velocity, Vector3.zero, 2);
+							rigidbody.AddForce(-2*rigidbody.velocity);
 						}
 						if(vessel.ctrlState.wheelThrottle == 0)
 						{
-							vessel.rigidbody.velocity = Vector3.MoveTowards(vessel.rigidbody.velocity, Vector3.zero, 2);
-							
+							rigidbody.AddForce(-2*rigidbody.velocity);
 						}
 					}
 				}
 				
-				if(this.part.vessel.checkLanded())
+				if(vessel.Landed)
 				{
 					Vector3 lookVector = Quaternion.Inverse(this.part.transform.rotation) * this.vessel.GetSrfVelocity();
 
@@ -330,25 +337,7 @@ namespace CritterCrawler
 				
 			}
 		}
-		
-		public override void OnSave(ConfigNode cfg)
-		{
-			if(cfg.HasValue("legsDeployed"))
-			{
-				cfg.SetValue("legsDeployed", deployed.ToString());	
-			}
-			else
-			{
-				cfg.AddValue("legsDeployed", deployed.ToString());
-			}
-		}
-		
-		public override void OnLoad(ConfigNode cfg)
-		{
-			if(cfg.HasValue("legsDeployed")){
-				deployed = bool.Parse(cfg.GetValue("legsDeployed"));	
-			}
-		}
+
 	}
 }
 
